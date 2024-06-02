@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
-# https://github.com/onespaceman/menu-calc
-# Calculator for use with rofi/dmenu(2)
-# Copying to the clipboard requires xclip
+# https://github.com/onespaceman/menu-qalc
+# Calculator for use with wofi/fuzzel/dmenu(2)
+# Copying to the clipboard requires wl-clipboard
 
 usage() {
-    echo "$(tput bold)menu-calc$(tput sgr0)"
-    echo "A calculator for Rofi/dmenu(2)"
+    echo "$(tput bold)menu-qalc$(tput sgr0)"
+    echo "A calculator for Wofi/fuzzel/dmenu(2)"
     echo
     echo "$(tput bold)Usage:$(tput sgr0)"
     echo "    = 4+2"
@@ -15,71 +15,87 @@ usage() {
     echo "    = sqrt(4)"
     echo "    = c(2)"
     echo
-    echo "$(tput bold)Force Rofi/dmenu(2):$(tput sgr0)"
-    echo "By default, if rofi exists, it will be used. To force menu-calc to"
+    echo "$(tput bold)Force Wofi/fuzzel/dmenu(2):$(tput sgr0)"
+    echo "By default, if wofi exists, it will be used. To force menu-qalc to"
     echo "use one or the other, use the --dmenu argument"
     echo
     echo "    = --dmenu=<dmenu_executable>"
     echo
-    echo "$(tput bold)Passing arguments to Rofi/dmenu(2):$(tput sgr0)"
-    echo "Any parameters after ' -- ' will be passed to Rofi/dmenu(2)."
+    echo "$(tput bold)Passing arguments to Wofi/fuzzel/dmenu(2):$(tput sgr0)"
+    echo "Any parameters after ' -- ' will be passed to Wofi/fuzzel/dmenu(2)."
     echo
-    echo "    = -- <Rofi/dmenu(2) args>"
+    echo "    = -- <Wofi/fuzzel/dmenu(2) args>"
     echo
-    echo "The answer can be copied to the clipboard and used for further calculations inside (or outside) Rofi/dmenu."
+    echo "The answer can be copied to the clipboard and used for further calculations inside (or outside) Wofi/fuzzel/dmenu."
     echo
-    echo "If launched outside of Rofi/dmenu the expression may need quotation marks."
+    echo "If launched outside of Wofi/fuzzel/dmenu the expression may need quotation marks."
     exit
 }
 
+process_query() { # query
+    local query="$1"
+
+    qalc +u8 -color=never -terse <<< "$query" \
+    | awk '!/^>/ && !/^$/ {gsub(/^[ \t]+|[ \t]+$/, "", $0); print}'
+}
+
 # Process CLI parameters
-for var in "$@"
+for arg in "$@"
 do
-    case $var in
+    case "$arg" in
         -h|--help) usage ;;
         -d=*|--dmenu=*)
-            menu=$(echo $var | cut -d'=' -f 2);
+            menu=$(echo "$arg" | cut -d'=' -f 2);
             ;;
         --) break ;;
     esac
 done
 
-# Grab the answer
-if [ -n "$1" ]; then
-    answer=$(echo "$1" | qalc +u8 -color=never -terse | awk '!/^>/ && !/^$/ {gsub(/^[ \t]+|[ \t]+$/, "", $0); print}')
-fi
-
 # Path to menu application
 if [ -z "${menu+1}" ]; then
-    if [[ -n $(command -v rofi) ]]; then
-        menu="$(command -v rofi)"
-    elif [[ -n $(command -v dmenu) ]]; then
-        menu=$(command -v dmenu)
-    else
-        >&2 echo "Rofi or dmenu not found"
+    for dmenu_exec in wofi fuzzel dmenu; do
+        if [[ -n $(command -v "$dmenu_exec") ]]; then
+            menu="$dmenu_exec"
+        fi
+    done
+
+    if [ -z "${menu+1}" ]; then
+        >&2 echo "Wofi, fuzzel or dmenu not found"
         exit
     fi
+
+    menu_cmd=("$(command -v "$menu")")
 fi
 
-# If using rofi, add the necessary parameters
-if [[ $menu == "rofi" || $menu == $(command -v rofi) ]]; then
-    menu="$menu -dmenu -lines 3"
-elif [[ $menu == "dmenu" || $menu == $(command -v dmenu) ]]; then
-    menu="$menu ""$DMENU_OPTIONS"
+# If using wofi or fuzzel, add the necessary parameters
+if [[ $menu == "wofi" || $menu == "fuzzel" ]]; then
+    menu_cmd+=(--dmenu --lines 3)
+elif [[ $menu == "dmenu" ]] && [ -n "${DMENU_OPTIONS+1}" ]; then
+    read -ra options <<< "$DMENU_OPTIONS"
+
+    menu_cmd+=("${options[@]}")
+
+    unset options
 fi
 
-# Determine args to pass to dmenu/rofi
+# User query
+query="$1"
+
+# Determine args to pass to dmenu/wofi
 while [[ $# -gt 0 && $1 != "--" ]]; do
     shift
 done
 [[ $1 == "--" ]] && shift
 
-action=$(echo -e "Copy to clipboard\nClear\nClose" | $menu "$@" -p "= $answer")
+answer=
 
-case $action in
-    "Clear") $0 ;;
-    "Copy to clipboard") echo -n "$answer" | xclip -selection clipboard ;;
-    "Close") ;;
-    "") ;;
-    *) $0 "$answer $action" "--dmenu=$menu" "--" "$@" ;;
-esac
+while true; do
+    action=$(echo -e "Copy\nClear\nClose" | "${menu_cmd[@]}" "$@" -p "= $answer")
+
+    case "$action" in
+        "Clear") answer= ;;
+        "Copy") wl-copy "$answer";;
+        "Close"|"") exit ;;
+        *) answer=$(process_query "$answer $action") ;;
+    esac
+done

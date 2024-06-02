@@ -1,2 +1,2 @@
 test:
-	man -l doc/menu-calc.1
+	man -l menu-qalc.1

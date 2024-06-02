@@ -8,8 +8,8 @@ Arch Linux AUR: [menu-qalc](https://aur.archlinux.org/packages/menu-qalc/)
 
 ## Dependencies
 - [libqalculate](https://archlinux.org/packages/extra/x86_64/libqalculate/)
-- [xclip](https://www.archlinux.org/packages/extra/x86_64/xclip/)
-- [Rofi](https://aur.archlinux.org/packages/rofi-git/) or
+- [wl-clipboard](https://github.com/bugaevc/wl-clipboard)
+- [Wofi](https://archlinux.org/packages/extra/x86_64/wofi/), [fuzzel](https://archlinux.org/packages/extra/x86_64/fuzzel/) or
   dmenu[(2)](https://aur.archlinux.org/packages/dmenu2/)
 
 ## Usage
@@ -40,7 +40,7 @@ For example:
     = -- -location 2 -width 100
 
 ### Force usage of `dmenu`
-By default, if `rofi` is installed, it will be used. You can force `menu-qalc`
+By default, if `wofi` or `fuzzel` is installed, it will be used. You can force `menu-qalc`
 to use `dmenu` or any other `dmenu`-like application:
 
     = --dmenu=dmenu
