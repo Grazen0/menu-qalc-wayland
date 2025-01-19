@@ -65,6 +65,8 @@ if [ -z "${menu+1}" ]; then
     fi
 
     menu_cmd=("$(command -v "$menu")")
+else
+    menu_cmd=("$menu")
 fi
 
 # If using wofi or fuzzel, add the necessary parameters
